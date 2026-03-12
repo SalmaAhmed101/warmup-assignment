@@ -13,7 +13,7 @@ function getShiftDuration(startTime, endTime) {
 
 
     let durationSecs=endSecs-startSecs;
-    //Midnight fix: if duration is negative, the endtime is on the next day
+    //If duration is negative, the endtime is on the next day(Midnight)
     if(durationSecs<0)
     {
         durationSecs+=86400; //24*3600
@@ -73,13 +73,13 @@ function getIdleTime(startTime, endTime) {
 
     if(startSecs<DELIVERY_START)
     {
-        // We only count up to 8 AM or the end of the shift, whichever is first
+        // Only count up to 8 AM or the end of the shift, whichever is first
         let morningIdleEnd = Math.min(endSecs, DELIVERY_START);
         idleTime += (morningIdleEnd - startSecs);
     }
     if(endSecs>DELIVERY_END)
     {
-        // We only count from 10 PM or the start of the shift, whichever is last
+        // Only count from 10 PM or the start of the shift, whichever is last
         let eveningIdleStart = Math.max(startSecs, DELIVERY_END);
         idleTime += (endSecs - eveningIdleStart);
     }
@@ -386,7 +386,51 @@ function getRequiredHoursPerMonth(textFile, rateFile, bonusCount, driverID, mont
 // ============================================================
 function getNetPay(driverID, actualHours, requiredHours, rateFile) {
     // TODO: Implement this function
-    return 0;
+
+    const rateContent = fs.readFileSync(rateFile, 'utf8').trimEnd();
+    let rateLines = rateContent.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+
+    for (let i = 0; i < rateLines.length; i++) {
+        const cols = rateLines[i].split(',');
+        if (cols[0] == driverID) {
+            const basePay = Number(cols[2]);
+            const tier = Number(cols[3]);
+            
+        
+            const actualSec = timeToSeconds(actualHours);
+            const requiredSec = timeToSeconds(requiredHours);
+            
+            let salaryDeduction = 0;
+
+            if (actualSec < requiredSec) {
+                
+                const missingHours = (requiredSec - actualSec) / 3600;
+                let deductionHours = 0;
+
+                switch (tier) {
+                    case 1: 
+                        deductionHours = Math.max(0, missingHours - 50);
+                        break;
+                    case 2: 
+                        deductionHours = Math.max(0, missingHours - 20);
+                        break;
+                    case 3: 
+                        deductionHours = Math.max(0, missingHours - 10);
+                        break;
+                    case 4: 
+                        deductionHours = Math.max(0, missingHours - 3);
+                        break;
+                }
+
+                
+                const deductionRatePerHour =Math.floor(basePay / 185);
+                salaryDeduction = Math.floor(deductionHours) * deductionRatePerHour;
+            }
+
+            return Math.round(basePay - salaryDeduction);
+        }
+    }
+    return 0; // Driver not found
 }
 
 module.exports = {
