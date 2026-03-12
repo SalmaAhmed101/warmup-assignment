@@ -314,7 +314,66 @@ function getTotalActiveHoursPerMonth(textFile, driverID, month) {
 // ============================================================
 function getRequiredHoursPerMonth(textFile, rateFile, bonusCount, driverID, month) {
     // TODO: Implement this function
-    return 0;
+    const shiftContent= fs.readFileSync(textFile, 'utf8').trimEnd()
+    let shiftLines = shiftContent.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+
+    const rateContent= fs.readFileSync(rateFile, 'utf8').trimEnd()
+    let rateLines = rateContent.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+
+    let dayOff="";
+    for(let i=1;i<rateLines.length;i++)
+    {
+        const cols=rateLines[i].split(',');
+        if(cols[0]===driverID)
+        {
+            dayOff=cols[1].trim();
+            break;
+        }
+    }
+
+    let TotalRequiredSeconds=0;
+    let found=false;
+
+    for(let i=1;i<shiftLines.length;i++)
+    {
+        const cols=shiftLines[i].split(',');
+
+        if(cols[0]==driverID)
+        {
+            found=true;
+
+            const dateParts = cols[2].split('-');
+            const readYear=Number(dateParts[0]);
+            const readMonth = Number(dateParts[1]);
+            const readDay=Number(dateParts[2])
+
+            if(readMonth===month)
+            {
+                const dateObj = new Date(cols[2]+ 'T00:00:00');
+                const weekday = dateObj.toLocaleString('en-us', { weekday: 'long' });
+
+                if(weekday!==dayOff)
+                {
+                    if(readYear===2025 && readMonth===4 && readDay>=10 && readDay<=30)
+                    {
+                        TotalRequiredSeconds+=(6*3600); //6 hours
+                    }
+                    else
+                    {
+                        TotalRequiredSeconds+=(8*3600)+(24*60); //8h 24m
+                    }
+                }
+            }
+        }
+    }
+    if (!found) return -1;
+
+    TotalRequiredSeconds -= (bonusCount * 2 * 3600);
+
+   
+    if (TotalRequiredSeconds < 0) TotalRequiredSeconds = 0;
+
+    return formatDuration(TotalRequiredSeconds);
 }
 
 // ============================================================
